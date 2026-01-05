@@ -1,0 +1,36 @@
+name: Deploy Finguer API (Symfony)
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H 87.98.230.129 >> ~/.ssh/known_hosts
+
+      - name: Deploy (git pull + composer + cache clear)
+        run: |
+          set -euo pipefail
+          ssh epgylzqu@87.98.230.129 "bash -lc '
+            set -euo pipefail
+            APP_DIR=\"/home/epgylzqu/api_finguer_com\"
+            cd \"\$APP_DIR\"
+
+            git fetch origin
+            git checkout main
+            git pull origin main
+
+            composer install --no-dev --prefer-dist --optimize-autoloader --ignore-platform-req=ext-redis
+            php bin/console cache:clear --env=prod || true
+          '"
